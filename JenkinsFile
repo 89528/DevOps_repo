@@ -1,0 +1,16 @@
+pipeline{
+stage('Fetch code') {
+  steps {
+        checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/itaifrenkel/java-hello-world-webapp/']]]) 
+  }
+}
+stage('Build'){
+  steps {
+          sh 'mvn clean package' 
+        }
+  }
+stage('Test'){
+   steps {
+      sh 'mvn test'
+   }
+}
