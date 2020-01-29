@@ -1,6 +1,4 @@
-pipeline{
-agent none
-stages {
+node{
   stage('Fetch code') {
     steps {
         checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[url: 'https://github.com/itaifrenkel/java-hello-world-webapp/']]]) 
@@ -17,5 +15,4 @@ stages {
       sh 'mvn test'
     }
   }
-}
 }
