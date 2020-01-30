@@ -9,7 +9,7 @@ node{
       sh 'mvn test'
   }
   stage('Deploy to docker') {
-     sh  'docker build -t apache   -f /home/ashish/Downloads/docker /apache1 /home/ashish/Downloads/docker'
+     sh  'docker build -t apache   -f /home/ashish/Downloads/docker/apache1 /home/ashish/Downloads/docker'
       sh 'docker run -d ApacheProject -p 80:80 -t webproj'
   }
 }
