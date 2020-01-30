@@ -10,6 +10,6 @@ node{
   }
   stage('Deploy to docker') {
      sh  'sudo docker build -t apache-$BUILD_NUMBER   -f apache1 .'
-      sh 'sudo docker run -d apacheproject -p 80:80 -t webproj'
+      sh 'sudo docker run -d apache-$BUILD_NUMBER -p 80:80 -t webproj'
   }
 }
