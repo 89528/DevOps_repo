@@ -1,0 +1,27 @@
+- hosts: localhost
+  connection: local
+  vars_prompt:
+        - name: access_key
+          private: false
+        - name: secret_key
+          private: false
+        - name: region
+          private: false
+        - name:  key_name
+          private: false
+  tasks:
+     - ec2_key: 
+          aws_access_key: "{{ access_key }}" 
+          aws_secret_key: "{{ secret_key }}"
+          region: "{{ region }}"
+          name: "{{ key_name }}"
+          state: present
+       register: ec2
+     - name: fetching key
+       set_fact:
+           key_fact:  "{{ ec2.key }}"
+     - name: saving key
+       become: true
+       copy: 
+         content: "{{ key_fact }}" 
+         dest: './new_key.pem' 
