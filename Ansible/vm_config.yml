@@ -1,0 +1,110 @@
+- hosts: all
+  vars:
+          password: ''
+          user: ''
+  become_user: root
+  tasks:
+   - name: enable ufw 
+     ufw:
+       state: enabled
+     become: yes
+   - name: allow ufw for ssh
+     ufw:
+       rule: allow
+       port: 22
+     become: yes
+   - name: allow ufw for http
+     ufw:
+       rule: allow
+       port: 80
+     become: yes
+   - name: create new user
+     user:
+       name: "{{ user }}"
+       group: sudo
+       password: "{{ password }}"
+       create_home: yes
+       shell: /bin/bash
+     become: yes
+   - name: add user into sudo group
+     lineinfile:
+             dest: /etc/sudoers
+             state: present
+             regexp: '^%{{ user }}'
+             line: '%{{ user }}  ALL=(ALL) NOPASSWD: ALL'
+             validate: 'visudo -cf %s'
+     become: yes
+   - name: apply latest patches
+     apt: update_cache=yes
+     become: yes
+   - name: lock root account
+     lineinfile:
+             dest: /etc/passwd
+             state: present
+             regexp: '^root\:x\:0\:0'
+             line: 'root:x:0:0:root:/root: nologin'
+     become: yes
+   - name: install required packages to install docker
+     apt: name= "{{ item }}" state=present update_cache=yes
+     with_items: 
+       -  apt-transport-https 
+       -  ca-certificates
+       -  curl
+       -  gnupg-agent
+       -  software-properties-common
+       -  python3-setuptools
+       -  virtualenv
+     become: yes
+   - name: Add docker GPG key
+     apt_key:
+         url: https://download.docker.com/linux/ubuntu/gpg
+         state: present
+     become: yes
+   - name: Add Docker Repository 
+     apt_repository: 
+          repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+          state: present
+     become: yes
+   - name: Update apt and install docker-ce
+     apt:
+       update_cache: yes
+       name: docker-ce
+       state: latest
+     become: yes
+   - name: Create docker group
+     group:
+       name: "docker"
+       state: present
+   - name: Adding user to docker group
+     user:
+       name: "{{ user }}"
+       groups: "docker"
+       append: "yes"
+     become: yes
+   - name: Install docker-compose and python-pip
+     command: "{{ item }}"
+     with_items:
+           - apt install python-pip -y
+           - pip install docker-compose
+     become: yes
+   - name: install unattended-upgrades
+     apt: name=unattended-upgrades state=present
+     become: yes
+   - name: enable unattended-upgrades
+     copy:
+       dest: /etc/apt/apt.conf.d/50unattended-upgrades-local
+       content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Unattended-Upgrade "1";
+          Unattended-Upgrade::Mail "root";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "true";
+          Unattended-Upgrade::Allowed-Origins {
+            "${distro_id}:${distro_codename}-security";
+            "${distro_id}:${distro_codename}-updates";
+          };
+     become: yes
+   - name: Reboot server in order for changes to take place
+     shell: "sleep 1 && reboot"
+     async: 1
+     poll: 0
