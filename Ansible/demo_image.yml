@@ -1,0 +1,26 @@
+---                                                                                                                                                                                             
+- hosts: localhost                                                                                                                                                                              
+  connection: local                                                                                                                                                                             
+ #gather_facts: False                                                                                                                                                                           
+  vars_prompt:                                                                                                                                                                                         
+    - name: region
+      private: false
+    - name: platform
+      private: false                                                                                                                                                                      
+  tasks:                                                                                                                                                                                        
+    - name: gather images                                                                                                                                                                       
+      ec2_ami_facts:                                                                                                                                                                            
+        owners: 'aws-marketplace'                                                                                                                                                                
+        #description: fetch images from aws                                                                                                                                                     
+        region: "{{ region }}"                                                                                                                                                                  
+        aws_access_key: "xxxxxxxxx"                                                                                                                                                  
+        aws_secret_key: "******************"        
+        filters:
+            # is-public: 'true'
+             virtualization-type: 'hvm'
+             root-device-type: 'ebs'   
+             name: "{{platform}}*"                                                                                                            
+      register: amidemo
+    - name: image list
+      set_fact:
+         ami_fact: "{{ amidemo.images | map(attribute='name') | list }}"
