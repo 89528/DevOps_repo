@@ -1,0 +1,29 @@
+- hosts: localhost
+  connection: local
+#  become: true
+  tasks:
+     - name: creating ec2 instance
+       ec2:
+         aws_access_key: 'xxxxxxxxxxxxxxx'
+         aws_secret_key: '*******************'
+         region: 'eu-west-2'
+         key_name: jenkins_key
+         instance_type: t2.micro
+         image: ami-077a5b1762a2dde35
+         vpc_subnet_id: subnet-0c922341
+         assign_public_ip: yes
+         group: deploy-group
+         wait: True
+         instance_tags:
+                Name: Deploy-server
+         user_data: "{{ lookup('file' , 'new.sh') }}"
+       register: ec2_fact
+     - name: wait for up
+       wait_for:
+           delay: 60
+           timeout: 300
+     - name: copying
+       command: scp -i /home/ashish/Downloads/jenkins_key.pem -r  /var/lib/jenkins/workspace/maven-job/target ubuntu@{{ ec2_fact.instances[0].public_ip }}:/tmp
+     - name: deploying
+       command: ssh -i  /home/ashish/Downloads/jenkins_key.pem ubuntu@{{ ec2_fact.instances[0].public_ip }} sudo docker cp /tmp/target tomcat-server:/usr/local/tomcat/webapps/ROOT
+
