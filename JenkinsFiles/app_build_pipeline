@@ -1,0 +1,38 @@
+pipeline {
+    agent any
+    stages{
+        stage('Checkout'){
+            steps{
+                checkout([$class: 'GitSCM', branches: [[name: '${BRANCH}']], 
+                doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], 
+                userRemoteConfigs: [[credentialsId: 'f90f4886-d1fd-4711-9093-d92f2476247e', url: 'git@github.com:elarahq/git_repo.git']]])
+            }
+        }
+        stage('Build'){
+            tools {
+                       jdk 'JAVA'
+            }
+           steps{
+               withCredentials([usernameColonPassword(credentialsId: 'prodMoEngage', variable: 'prodmonengage'), usernameColonPassword(credentialsId: 'debugMoEngage', variable: 'debugmoengage'), usernameColonPassword(credentialsId: 'prodCypher', variable: 'prodcypher'), usernameColonPassword(credentialsId: 'debugCypher', variable: 'debugcypher')]) {
+                    sh "sed 's/MoEngage/prodMoEngage/' secrets.gradle"
+                   sh "sed 's/debugMoEngageApp/debugMoEngage/' secrets.gradle"
+                   sh "sed 's/Cypher/prodCypher/' secrets.gradle"
+                   sh "sed 's/CypherKey/debugCypher/' secrets.gradle"
+}
+             script {
+               //  tool name: 'Gradle-7', type: 'gradle'
+            if (env.ENV == 'debug') {
+                withGradle {
+                    sh './gradlew -v'
+             sh './gradlew clean assembleDebug --stacktrace'
+            }
+            } else {
+                withGradle {
+                sh './gradlew clean assembleRelease'
+            }
+            }
+               }       
+        }
+    }
+}
+}
