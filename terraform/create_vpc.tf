@@ -3,12 +3,12 @@ resource "aws_vpc" "my_vpc_prod" {
   assign_generated_ipv6_cidr_block = false
   enable_classiclink               = false
   enable_classiclink_dns_support   = false
-  cidr_block                       = "${var.vpc_cidr}"
+  cidr_block                       = "172.12.0.0/16"
   enable_dns_hostnames             = true
   enable_dns_support               = true
 
   tags = {
-    Name        = "${var.vpc_name}"
+    Name        = "mini-prod"
     Provisioner = "Terrafrom"
   }
 
@@ -17,12 +17,12 @@ data "aws_availability_zones" "az" {}
 
 resource "aws_subnet" "public-web-a" {
   vpc_id                  = "${aws_vpc.my_vpc_prod.id}"
-  cidr_block              = "${cidrsubnet(var.vpc_cidr, 4, 0)}"
+  cidr_block              = "${cidrsubnet(172.24.0.0/16, 4, 0)}"
   availability_zone       = "${data.aws_availability_zones.az.names[0]}"
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.vpc_name}-public-web-a"
+    Name        = "mini-prod-public-web-a"
     Provisioner = "Terrafrom"
   }
 }
@@ -33,7 +33,7 @@ resource "aws_subnet" "public-web-b" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.vpc_name}-public-web-b"
+    Name        = "mini-prod-public-web-b"
     Provisioner = "Terrafrom"
   }
 }
@@ -44,7 +44,7 @@ resource "aws_subnet" "public-web-a2" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.vpc_name}-public-web-a2"
+    Name        = "mini-prod-public-web-a2"
     Provisioner = "Terrafrom"
   }
 }
@@ -55,19 +55,19 @@ resource "aws_subnet" "private-server-a" {
   map_public_ip_on_launch = false
 
   tags = {
-    Name        = "${var.vpc_name}-private-server-a"
+    Name        = "mini-prod-private-server-a"
     Provisioner = "Terrafrom"
   }
 }
 
 resource "aws_subnet" "private-database-a" {
-  vpc_id                  = "${aws_vpc.housing_vpc_prod.id}"
+  vpc_id                  = "${aws_vpc.my_vpc_prod.id}"
   cidr_block              = "${cidrsubnet(var.vpc_cidr, 4, 6)}"
   availability_zone       = "${data.aws_availability_zones.az.names[0]}"
   map_public_ip_on_launch = false
 
   tags = {
-    Name                           = "${var.vpc_name}-private-database-a"
+    Name                           = "mini-prod-private-database-a"
     Provisioner                    = "Terrafrom"
   }
 }
@@ -78,7 +78,7 @@ resource "aws_subnet" "private-database-b" {
   map_public_ip_on_launch = false
 
   tags = {
-    Name                           = "${var.vpc_name}-private-database-b"
+    Name                           = "mini-prod-private-database-b"
     Provisioner                    = "Terrafrom"
     }
 }
@@ -87,7 +87,7 @@ resource "aws_internet_gateway" "vpc-gw" {
   vpc_id = "${aws_vpc.my_vpc_prod.id}"
 
   tags = {
-    Name        = "${var.vpc_name}-igw"
+    Name        = "mini-prod-igw"
     Provisioner = "Terrafrom"
   }
 }
@@ -99,12 +99,12 @@ resource "aws_nat_gateway" "natgateway-prod" {
   allocation_id = "${aws_eip.nat-eip-server-a.id}"
   subnet_id     = "${aws_subnet.public-web-a.id}"
   tags = {
-    Name        = "${var.vpc_name}-natgateway"
+    Name        = "mini-prod-natgateway"
     Provisioner = "Terrafrom"
   }
 }
 resource "aws_route_table" "public-web" {
-  vpc_id = "${aws_vpc.my_vpc_prod.id}"
+  vpc_id = "${mini-prod_vpc_prod.id}"
 
   route {
     cidr_block = "0.0.0.0/0"
@@ -123,7 +123,7 @@ resource "aws_route_table" "public-web2" {
     gateway_id = "${aws_internet_gateway.vpc-gw.id}"
   }
   tags = {
-    Name        = "${var.vpc_name}-rt-public-web2"
+    Name        = "mini-prod-rt-public-web2"
     Provisioner = "Terrafrom"
   }
 }
@@ -136,7 +136,7 @@ resource "aws_route_table" "rt-private" {
   }
 
   tags = {
-    Name        = "${var.vpc_name}-rt-private"
+    Name        = "mini-prod-rt-private"
     Provisioner = "Terrafrom"
   }
 }
@@ -188,15 +188,15 @@ resource "aws_security_group" "ec2-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name        = "${var.vpc_name}-web-sg"
+    Name        = "mini-prod-web-sg"
     Provisioner = "Terrafrom"
   }
 }
 
 resource "aws_security_group" "ec2-app-sg" {
   vpc_id      = "${aws_vpc.my_vpc_prod.id}"
-  name        = "${var.vpc_name}-appslb-sg"
-  description = "appslb-EC2-security-group"
+  name        = "mini-prod-sg"
+  description = "apps-EC2-security-group"
   ingress {
     from_port   = 80
     to_port     = 80
@@ -216,13 +216,13 @@ resource "aws_security_group" "ec2-app-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name        = "${var.vpc_name}-appslb-sg"
+    Name        = "mini-prod-apps-sg"
     Provisioner = "Terrafrom"
   }
 }
 resource "aws_security_group" "ec2-db-sg" {
-  vpc_id      = "${aws_vpc.housing_vpc_prod.id}"
-  name        = "${var.vpc_name}-db-sg"
+  vpc_id      = "${aws_my_vpc_prod.id}"
+  name        = "mini-prod-db-sg"
   description = "appslb-EC2-security-group"
   ingress {
     from_port   = 5432
@@ -243,7 +243,7 @@ resource "aws_security_group" "ec2-db-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = {
-    Name        = "${var.vpc_name}-db-sg"
+    Name        = "mini-prod-db-sg"
     Provisioner = "Terrafrom"
   }
 }
