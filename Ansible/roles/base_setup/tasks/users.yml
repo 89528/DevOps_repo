@@ -1,0 +1,110 @@
+---
+
+- name: "set 'DIR_MODE=0750' in /etc/adduser.conf"
+  replace:
+    path: '/etc/adduser.conf'
+    regexp: "^DIR_MODE=0755"
+    replace: 'DIR_MODE=0750'
+  when: ansible_facts['os_family'] == "Debian"
+
+- name: Create app user
+  user:
+    name: "{{ app_user }}"
+    shell: /bin/zsh
+
+- name: 'Clone zprezto repo'
+  git:
+    repo: https://github.com/sorin-ionescu/prezto.git
+    dest: "{{ item.value }}/.zprezto/"
+    recursive: yes
+    version: 'HEAD'
+    update: no
+  become_user: "{{ item.key }}"
+  with_dict: "{{ user_directories }}"
+
+# FIXME: fix owner of these symlinks
+- name: 'Add symbolic link dotfiles'
+  file:
+    src: "{{ item.0 }}/.zprezto/runcoms/{{ item.1 }}"
+    dest: "{{ item.0 }}/.{{ item.1 }}"
+    state: 'link'
+  with_nested:
+    - "{{ user_directories.values() | list }}"
+    - ['zlogin', 'zlogout', 'zpreztorc', 'zprofile', 'zshenv']
+  no_log: true
+
+- name: 'Adding .zshrc file'
+  copy:
+    src: zshrc.sh
+    dest: "{{ item.value }}/.zshrc"
+    owner: "{{ item.key }}"
+  become_user: "{{ item.key }}"
+  with_dict: "{{ user_directories }}"
+
+- name: 'Set zsh as default shell'
+  user:
+    name: "{{ item.key }}"
+    shell: /bin/zsh
+  with_dict: "{{ user_directories }}"
+  no_log: true
+
+- name: 'Ensure home directory is not visible by others'
+  file: path="/home/{{ item.value }}" state=directory mode=0750
+  with_dict: "{{ user_directories }}"
+
+- name: 'Add handy CLI aliases for users'
+  copy:
+    src: 'bash_aliases.sh'
+    dest: '{{ item.value }}/.bash_aliases'
+    mode: 0600
+  become: true
+  become_user: "{{ item.key }}"
+  with_dict: "{{ user_directories }}"
+
+- name: 'Add handy CLI aliases for user {{ ansible_user }}'
+  copy:
+    src: 'bash_aliases.sh'
+    dest: "/home/{{ ansible_user }}/.bash_aliases"
+    mode: 0600
+  become: false
+
+- name: 'Add further CLI aliases for user {{ app_user }}'
+  template:
+    src: 'app_bash_aliases.sh.j2'
+    dest: '/home/{{ app_user }}/.app_bash_aliases'
+    mode: 0600
+  become: true
+  become_user: "{{ app_user }}"
+
+- name: 'setup vimrc'
+  copy:
+    src: 'vimrc'
+    dest: '{{ item.value }}/.vimrc'
+    owner: "{{ item.key }}"
+    group: "{{ item.key }}"
+    mode: '0640'
+  become_user: "{{ item.key }}"
+  become: true
+  with_dict: "{{ user_directories }}"
+
+- name: 'Ensure vim colors directory exists'
+  become: true
+  become_user: "{{ item.key }}"
+  file: path=~/.vim/colors/ state=directory recurse=true
+  with_dict: "{{ user_directories }}"
+  no_log: true
+
+- name: 'Copy vim color scheme'
+  become: true
+  become_user: "{{ item.key }}"
+  copy: src=monokai.vim dest=~/.vim/colors/monokai.vim
+  with_dict: "{{ user_directories }}"
+
+- name: 'install vim plugin handler'
+  git:
+    repo: 'https://github.com/VundleVim/Vundle.vim.git'
+    dest: '{{ item.value }}/.vim/bundle/Vundle.vim'
+    update: false
+  become: true
+  become_user: "{{ item.key }}"
+  with_dict: "{{ user_directories }}"

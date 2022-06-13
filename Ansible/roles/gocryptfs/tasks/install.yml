@@ -1,0 +1,118 @@
+---
+# https://github.com/containers/podman/issues/13338
+- name: "{{ gocryptfs_user }} | Enable lingering"
+  block:
+
+  - name: Allow fuse mounts for others
+    lineinfile:
+      line: user_allow_other
+      regexp: ^user_allow_other
+      path: /etc/fuse.conf
+
+  - name: "{{ gocryptfs_user }} | Check if lingering is enabled"
+    ansible.builtin.stat:
+      path: "/var/lib/systemd/linger/{{ gocryptfs_user }}"
+    register: linger
+    no_log: true
+
+  - name: "{{ gocryptfs_user }} | Enable lingering"
+    ansible.builtin.command: "loginctl enable-linger {{ gocryptfs_user }}"
+    when:
+      - not linger.stat.exists
+      - systemd_config.enable_linger | default('yes')
+
+- name: Get gocryptfs release details
+  uri:
+    url: "https://api.github.com/repos/rfjakob/gocryptfs/releases/{{ (gocryptfs_version == 'latest') | ternary('latest', 'tags/' + gocryptfs_version) }}"
+    return_content: true
+  delegate_to: localhost
+  run_once: true
+  register: gocryptfs_release
+  become: false
+  no_log: true
+
+- name: set gocryptfs_download_info
+  set_fact:
+    gocryptfs_download_info: "{{ gocryptfs_release.json.assets | selectattr('browser_download_url', 'match', '.*linux-static_' + go_arch + '.tar.gz$') | first }}"
+  when: gocryptfs_release is succeeded
+  become: false
+  no_log: true
+
+- name: Download Gocryptfs
+  get_url:
+    url: "{{ gocryptfs_download_info.browser_download_url }}"
+    dest: '/tmp/'
+    timeout: 300
+    owner: "{{ gocryptfs_user }}"
+    group: "{{ gocryptfs_user }}"
+    mode: '0555'
+  retries: 3
+  delay: 2
+  register: gocryptfs_download
+  when: gocryptfs_download_info is defined
+
+- name: Unarchive Gocryptfs
+  unarchive:
+    src: "/tmp/{{ gocryptfs_download_info.name }}"
+    dest: "{{ gocryptfs_bin_dir }}/"
+    remote_src: true
+    owner: "{{ gocryptfs_user }}"
+    group: "{{ gocryptfs_user }}"
+    include: "{{ gocryptfs_binaries }}"
+  when: gocryptfs_download_info is succeeded
+
+- name: create gocryptfs directories
+  file:
+    path: "/home/{{ gocryptfs_user }}/volumes/{{ item }}"
+    state: directory
+    owner: "{{ gocryptfs_user }}"
+    group: "{{ gocryptfs_user }}"
+  loop:
+    - encrypted
+    - decrypted
+  # avoid 'There was an issue creating … as requested: [Errno 17] File exists: b''…'''
+  # https://github.com/ansible/ansible/issues/72382
+  ignore_errors: true
+
+- name: Check if gocryptfs is already configured
+  find:
+    paths: "/home/{{ gocryptfs_user }}/volumes/encrypted"
+  register: gocryptfs_config
+  no_log: true
+
+- name: create local bin directory
+  file:
+    path: "/home/{{ gocryptfs_user }}/bin"
+    state: directory
+    owner: "{{ gocryptfs_user }}"
+    group: "{{ gocryptfs_user }}"
+
+# https://superuser.com/questions/1722412/re-starting-a-systemd-unit-with-user-input-on-ansible/1722424#1722424
+- name: 'Add password wrapper script'
+  copy:
+    src: 'gocryptfs-extpass.sh'
+    dest: "/home/{{ gocryptfs_user }}/bin/gocryptfs-extpass.sh"
+    mode: '0500'
+    owner: "{{ gocryptfs_user }}"
+    group: "{{ gocryptfs_user }}"
+
+- name: Init volume in "/home/{{ gocryptfs_user }}/volumes/encrypted" if it is not configured yet
+  shell: gocryptfs --extpass="/home/{{ gocryptfs_user }}/bin/gocryptfs-extpass.sh {{ gocryptfs_password }}" -init "/home/{{ gocryptfs_user }}/volumes/encrypted"
+  become_user: "{{ gocryptfs_user }}"
+  when: gocryptfs_config.matched < 2
+
+- name: create systemd directory
+  file:
+    path: "/home/{{ gocryptfs_user }}/.local/share/systemd/user"
+    state: directory
+    owner: "{{ gocryptfs_user }}"
+    group: "{{ gocryptfs_user }}"
+
+- name: configure systemd service
+  template:
+    src: gocryptfs.service.j2
+    dest: "{{ service_dir }}/gocryptfs.service"
+    owner: "{{ gocryptfs_user }}"
+    mode: '0600'
+    group: "{{ gocryptfs_user }}"
+  notify: Start GoCryptFs

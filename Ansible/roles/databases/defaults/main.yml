@@ -1,0 +1,28 @@
+
+---
+
+container_service_prefix: 'container'
+
+# https://hub.docker.com/r/clickhouse/clickhouse-server
+clickhouse_admin_password: 'supersecret'
+clickhouse_admin_user: 'catwoman'
+clickhouse_image: 'docker.io/yandex/clickhouse-server:22'
+clickhouse_port: '8123'
+# https://hub.docker.com/_/mariadb
+mariadb_admin_password: 'supersecret'
+mariadb_admin_user: 'root'
+mariadb_image: 'docker.io/mariadb:10'
+mariadb_port: '3808'
+# https://hub.docker.com/_/mongo
+mongodb_admin_password: 'supersecret'
+mongodb_admin_user: 'robin'
+mongodb_image: 'docker.io/mongo:5'
+mongodb_port: '27017'
+# https://hub.docker.com/_/postgres
+postgres_admin_password: 'supersecret'
+postgres_admin_user: 'batman'
+postgres_image: 'docker.io/postgres:14'
+postgres_port: '5432'
+# https://hub.docker.com/_/redis
+redis_image: 'docker.io/redis:7'
+redis_port: '6379'

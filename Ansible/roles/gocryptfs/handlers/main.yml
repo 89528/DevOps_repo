@@ -1,0 +1,5 @@
+---
+
+- name: Start GoCryptFs
+  include_tasks: roles/gocryptfs/tasks/start_gocryptfs.yml
+  # import_tasks: roles/gocryptfs/tasks/start_gocryptfs.yml

@@ -1,0 +1,45 @@
+export HOMEBREW_NO_ANALYTICS=1
+
+# set PATH so it includes user's private bin if it exists
+if [ -d "$HOME/bin" ] ; then
+  PATH="$HOME/bin:$PATH"
+fi
+
+alias app_user='echo "You are already in the app user shell"'
+alias aliases="cat ~/.app_bash_aliases | \grep alias | sed -e 's/alias //g' | sort | \egrep '^[^=]+' --color=auto"
+
+alias services_status="SYSTEMD_COLORS=1 systemctl list-units --user --type=service"
+alias service_states="services_status"
+alias service_dir="cd {{ service_dir }}"
+alias cdservice_dir="service_dir"
+alias status_all="services_status"
+
+alias global_podman_logs="podman logs --latest --names --timestamps --since=10m --tail=100"
+alias last_podman_logs="podman pod logs --timestamps --tail=100 {{ default_pod_name }}"
+alias podman_logs_last="last_podman_logs"
+alias last_container_logs="last_podman_logs"
+alias podman_ports="podman port -l"
+
+{% for name, service_name in service_aliases.items() %}
+alias {{ name }}_log="podman logs --follow --tail=100 --timestamps {{ name }}"
+alias {{ name }}_service_log="journalctl --user -xeu {{ service_name }}.service"
+alias {{ name }}_status="systemctl --user status {{ service_name }}.service"
+alias {{ name }}_restart="systemctl restart {{ service_name }}.service --user"
+alias {{ name }}_start="systemctl start {{ service_name }}.service --user"
+alias {{ name }}_stop="systemctl stop {{ service_name }}.service --user"
+alias restart_{{ name }}="{{ name }}_service_restart"
+alias start_{{ name }}="{{ name }}_service_start"
+alias stop_{{ name }}="{{ name }}_service_restart"
+alias status_{{ name }}="{{ name }}_service_status"
+{% endfor %}
+
+alias gocryptfs_log="gocryptfs_service_log"
+
+alias psql="podman exec -it postgres psql -U {{ postgres_admin_user }}"
+alias postgres="psql"
+alias mariadb="podman exec -it mariadb mysql -u {{ mariadb_admin_user }} -p'{{ mariadb_admin_password }}'"
+alias mysql="mariadb"
+alias mongodb="podman exec -it mongodb mongo"
+alias redis="podman exec -it redis redis-cli"
+alias clickhouse="podman exec -it clickhouse clickhouse-client --user {{ clickhouse_admin_user }} --password {{ clickhouse_admin_password }}"
+alias clickhouse-client="clickhouse"

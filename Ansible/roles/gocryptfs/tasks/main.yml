@@ -1,0 +1,10 @@
+---
+# tasks file for thtong.gocryptfs
+- name: check some variables value
+  assert:
+    that:
+      - "gocryptfs_action in ['install', 'uninstall']"
+
+- name: "{{ gocryptfs_action }} gocryptfs"
+  include_tasks:
+    file: "{{ gocryptfs_action }}.yml"

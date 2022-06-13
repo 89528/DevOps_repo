@@ -1,0 +1,18 @@
+---
+- name: Setup adgaurdhome on podman
+  containers.podman.podman_container:
+          name: adgaurdhome
+          image: adguard/adguardhome
+          restart_policy: always
+          ports:
+            - "784:784/udp"
+            - "5443:5443/tcp" 
+            - "5443:5443/udp"
+            - "853:853/tcp"
+            - "9081:67/udp"
+            - "9080:53/tcp"
+            - "3000:3000/tcp"
+          detach: yes
+          volume:
+            - "/tmp:/opt/adguardhome/conf"
+            - "/tmp/data:/opt/adguardhome/work"

@@ -1,0 +1,7 @@
+---
+# tasks file for thtong.gocryptfs
+- name: remove gocryptfs
+  file:
+    path: "{{ gocryptfs_bin_dir }}/{{ item }}"
+    state: absent
+  loop: "{{ gocryptfs_binaries }}"

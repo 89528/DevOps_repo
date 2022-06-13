@@ -1,0 +1,108 @@
+---
+
+- include_tasks: roles/container_base/tasks/create_container.yml
+  vars:
+    app_name: 'postgres'
+    app_volumes:
+      - "{{ volume_root_dir }}/postgres:/var/lib/postgresql/data:Z,U,rbind,noexec"
+    app_env:
+      # https://hub.docker.com/_/postgres
+      POSTGRES_USER: '{{ postgres_admin_user }}'
+      POSTGRES_PASSWORD: '{{ postgres_admin_password }}'
+    app_image: '{{ postgres_image }}'
+    app_memory: '512M'
+    app_ports:
+      - '{{ postgres_port }}'
+
+- include_tasks: roles/container_base/tasks/create_container.yml
+  vars:
+    app_name: 'mariadb'
+    app_volumes:
+      - "{{ volume_root_dir }}/mariadb:/var/lib/mysql:Z,U,rbind,noexec"
+    app_env:
+      # https://hub.docker.com/_/mariadb
+      MARIADB_USER: "{{ mariadb_admin_user }}"
+      MARIADB_ROOT_PASSWORD: "{{ mariadb_admin_password }}"
+      MARIADB_ROOT_HOST: 'localhost'
+    app_image: '{{ mariadb_image }}'
+    app_memory: '512M'
+    app_ports:
+      - '{{ mariadb_port }}'
+
+- include_tasks: roles/container_base/tasks/create_container.yml
+  vars:
+    app_name: 'mongodb'
+    app_volumes:
+      - "{{ volume_root_dir }}/mongodb:/data/db"
+    app_env:
+      # https://hub.docker.com/_/mongo
+      MONGO_INITDB_ROOT_USERNAME: "{{ mongodb_admin_user }}"
+      MONGO_INITDB_ROOT_PASSWORD: "{{ mongodb_admin_password }}"
+    app_image: '{{ mongodb_image }}'
+    app_memory: '512M'
+    app_ports:
+      - '{{ mongodb_port }}'
+
+- include_tasks: roles/container_base/tasks/create_container.yml
+  vars:
+    app_name: 'redis'
+    app_volumes:
+      - "{{ volume_root_dir }}/redis:/data/db"
+    app_env:
+      # https://redis.io/docs/manual/persistence/
+      REDIS_ARGS: '--save 60 1'
+    app_image: '{{ redis_image }}'
+    app_memory: '512M'
+    app_ports:
+      - '{{ redis_port }}'
+
+- include_tasks: roles/container_base/tasks/create_container.yml
+  vars:
+    app_name: 'clickhouse'
+    app_volumes:
+      - "{{ volume_root_dir }}/clickhouse:/var/lib/clickhouse/"
+    app_env:
+      # https://hub.docker.com/r/clickhouse/clickhouse-server
+      CLICKHOUSE_USER: "{{ clickhouse_admin_user }}"
+      CLICKHOUSE_PASSWORD: "{{ clickhouse_admin_password }}"
+    app_image: '{{ clickhouse_image }}'
+    app_memory: '512M'
+    app_ports:
+      - '{{ clickhouse_port }}'
+
+# FIXME: use decrypted directory once this is solved:
+# - https://stackoverflow.com/questions/72432778/writable-directories-with-rootless-podman
+#
+# creating directories within mounts seem to be problematic: https://github.com/ansible/ansible/issues/72382#issuecomment-888982980
+# - name: ensure database volume directory
+#   ansible.builtin.file:
+#     path: "{{ volume_root_dir }}/postgres"
+#     state: directory
+#     recurse: no
+#     owner: "{{ app_user }}"
+#     group: "{{ app_user }}"
+#     unsafe_writes: true
+
+# - name: "Checking database volume directory"
+#   stat:
+#     path: "{{ volume_root_dir }}/postgres"
+#     register: volume_dir
+
+# - name: Create database volume directory
+#   ansible.builtin.command: "mkdir -p {{ volume_root_dir }}/postgres"
+#   become_user: "{{ app_user }}"
+#   args:
+#     creates: "{{ volume_root_dir }}/postgres"
+
+#   # when: volume_dir.stat.exists == False
+
+# - name: "Create volume dependency to postgres container"
+#   ini_file:
+#     dest: "{{ service_dir }}/{{ container_service_prefix }}-postgres.service"
+#     owner: "{{ app_user }}"
+#     group: "{{ app_user }}"
+#     mode: 0644
+#     section: Unit
+#     option: BindsTo
+#     value: gocryptfs.service
+#   become_user: "{{ app_user }}"

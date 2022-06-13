@@ -1,0 +1,36 @@
+---
+
+# https://github.com/hybridadmin/ansible-role-podman/blob/944bd951a10a11c36dc186a30297826a83ce41cd/tasks/crun.yml
+
+- name: Check crun exists
+  stat:
+    path: '/usr/bin/crun'
+  register: old_crun_installed
+  no_log: true
+
+- name: Delete crun if exists
+  file:
+    path: "{{ item.stat.path }}"
+    state: absent
+  with_items:
+    - "{{ old_crun_installed }}"
+  when: item.stat.exists | bool
+  changed_when: false
+  no_log: true
+
+- name: get latest crun version
+  shell: |
+    set -o pipefail
+    curl -sSL https://api.github.com/repos/containers/crun/releases | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/' | head -n1
+  args:
+      executable: /bin/bash
+  become: true
+  register: new_crun_version
+  changed_when: false
+
+- name: Install latest crun
+  get_url:
+    url: https://github.com/containers/crun/releases/download/{{ new_crun_version.stdout }}/crun-{{ new_crun_version.stdout }}-linux-amd64
+    dest: "/usr/bin/crun"
+    mode: 0755
+  changed_when: false

@@ -1,0 +1,3 @@
+---
+app_name: 'healthcheck'
+app_image: 'docker.io/linuxserver/healthchecks'

@@ -1,0 +1,61 @@
+---
+
+# do not use SUSE PPA since it is not maintained anymore: https://podman.io/getting-started/installation#ubuntu
+# do not use fuse-overlayfs since 5.15 has native support for overlayfs: https://www.redhat.com/sysadmin/podman-rootless-overlay
+
+- name: Install latest crun
+  include_tasks: crun.yml
+
+- name: Install latest slirp4netns
+  include_tasks: slirp4netns.yml
+
+- name: Install Podman tooling
+  become: true
+  apt:
+    name:
+      - uidmap
+      - libglib2.0-0
+      - podman
+      - buildah
+      - skopeo
+    update_cache: true
+    cache_valid_time: 86400 # in seconds = 1 day
+  no_log: true
+
+# https://github.com/hybridadmin/ansible-role-podman/blob/190f86fdf8f46a315eb75947ba7851bc42838055/tasks/podman-rootless.yml
+- name: Set default OCI runtime to 'crun'
+  lineinfile:
+    path: '/usr/share/containers/containers.conf'
+    regexp: '(^#\s*runtime\s*=\s*"crun"$)'
+    line: 'runtime = "crun"'
+
+- name: Set Podman storage driver to overlay
+  ini_file:
+    path: '/usr/share/containers/storage.conf'
+    section: storage
+    option: driver
+    value: '"overlay"'
+
+# - name: Set user rootless storage path
+#   lineinfile:
+#     path: "/etc/containers/storage.conf"
+#     regexp: '(^#\ rootless_storage_path.*)'
+#     line: 'rootless_storage_path = "$HOME/volumes/storage"'
+
+- name: Create default Pod service
+  containers.podman.podman_pod:
+    name: "{{ default_pod_name }}"
+    state: started
+    userns: 'keep-id'
+    hostname: 'apps'
+    ports:
+      - '51444:53555'
+    # FIXME: you might to need to publish the NGINX and AdGuardHome ports to the host
+    # https://docs.ansible.com/ansible/latest/collections/containers/podman/podman_pod_module.html#parameter-publish
+    # publish:
+    #   - ...
+    generate_systemd:
+      path: "{{ service_dir }}"
+      restart_policy: always
+      container_prefix: "{{ pod_service_prefix }}"
+  become_user: "{{ app_user }}"

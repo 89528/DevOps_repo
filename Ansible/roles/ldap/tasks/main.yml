@@ -1,0 +1,117 @@
+---
+- name: Get GoCryptFs Status
+  ansible.builtin.systemd:
+   name: 'gocryptfs'
+   scope: user
+ register: gocryptfs_status
+ become_user: "{{ app_user }}"
+ when: (app_volumes) and (gocryptfs_status.status.SubState == 'running')
+ no_log: true
+
+- name: Create OpenLDAP volume folders
+  file:
+    path: "{{ volume_root_dir }}/{{ item }}"
+    state: directory
+  loop:
+     - openldap/config
+     - openldap/database
+     - openldap/certs
+
+- name: OpenLDAP container
+  containers.podman.podman_container:
+        name: "{{ app_name}}"
+        image: "{{ app_image}}"
+        memory: "{{ app_memory | default(memory_limit) }}"
+        generate_systemd:
+            path: "{{ service_dir }}"
+            restart_policy: always
+            container_prefix: "{{ container_service_prefix }}"
+        env:
+          LDAP_ADMIN_PASSWORD: changeme
+          LDAP_ORGANISATION: xip.io
+          LDAP_DOMAIN: "{{ lookup('dig', ansible_host) }}.xip.io"
+          LDAP_BASE_DN: "dc={{ lookup('dig', ansible_host) }},dc=xip.io"
+          LDAP_TLS_VERIFY_CLIENT: try
+        volumes:
+          - "{{ volume_root_dir }}/openldap/config:/etc/ldap/slapd.d"
+          - "{{ volume_root_dir }}/openldap/database:/var/lib/ldap"
+          - "{{ volume_root_dir }}/openldap/certs:/tmp/certs"
+        expose:
+          - "3384"
+          - "6637"
+        state: started
+        restart: true
+        timezone: "{{ timezone }}"
+        hostname: "{{ host }}"
+  become_user: "{{ app_user }}"
+  register: result
+  until: result is succeeded
+  retries: 5
+  delay: 10
+
+  #- name: Install Openldap Cert
+  #tags: [start-setup, restart-openldap]
+  # shell:
+  # cmd: |
+  #     podman exec openldap bash -c "cp /container/service/slapd/assets/certs/ca.crt /tmp/certs/openldap.crt"
+  #     sudo cp {{ volumes_dir}}/openldap/certs/openldap.crt /etc/pki/ca-trust/source/anchors/openldap.crt
+  #     sudo update-ca-trust extract
+  #     cp {{ volumes_dir}}/openldap/certs/openldap.crt {{ volumes_dir}}/config/extra_ca_certs/openldap.crt
+- name: Initialize OpenLDAP
+  shell:
+    cmd: |
+        sudo chmod -R a+rwx "{{ volume_root_dir }}/openldap"
+        cat <<EOF > "{{ volume_root_dir }}/openldap/config/setup-openldap.ldif"
+          dn: ou=Users,dc=,dc=com
+          objectClass: top
+          objectClass: organizationalUnit
+          ou: Users
+          dn: "ou=Groups,dc={{ lookup('dig', ansible_host) }},dc=xip.io"
+          objectClass: top
+          objectClass: organizationalUnit
+          ou: Groups
+          
+          dn: "uid=penpot,ou=Users,dc={{ lookup('dig', ansible_host) }},dc=xip.io"
+          uid: penpot
+          cn: penpot
+          sn: 3
+          objectClass: top
+          objectClass: inetOrgPerson
+          loginShell: /bin/bash
+          homeDirectory: /home/penpot
+          uidNumber: 14383103
+          gidNumber: 14364101
+          userPassword: {SSHA}16UWnzTZjA0V36439jH7gR5X87XvdiqB
+
+          dn: "cn=admin,ou=Groups,dc={{ lookup('dig', ansible_host) }},dc=xip.io"
+          objectClass: groupOfUniqueNames
+          cn: admin
+          description: Admin users
+          uniqueMember: "uid=admin,dc={{ lookup('dig', ansible_host) }}, dc=xip.io"
+          EOF
+  become_user: "{{ app_user }}"
+- name: "Create {{ app_name }} volume dependency to gocryptfs"
+  ini_file:
+    dest: "{{ service_dir }}/{{ container_service_prefix }}-{{ app_name }}.service"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: 0644
+    section: Unit
+    option: BindsTo
+    value: gocryptfs.service
+  become_user: "{{ app_user }}"
+  when: (app_volumes) and (gocryptfs_status.status.SubState == 'running')
+
+- name: 'Check if {{ container_service_prefix }}-{{ app_name }}.service exists'
+  stat:
+    path: "{{ service_dir }}/{{ container_service_prefix }}-{{ app_name }}.service"
+  register: service_file
+
+- name: "Start {{ app_name }} container"
+  ansible.builtin.systemd:
+  name: "{{ container_service_prefix }}-{{ app_name }}.service"
+    scope: user
+    state: started
+    daemon_reload: yes
+  become_user: "{{ app_user }}"
+  when: (service_file.stat.isreg is defined) and (service_file.stat.isreg)

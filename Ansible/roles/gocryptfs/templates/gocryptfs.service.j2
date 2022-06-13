@@ -1,0 +1,15 @@
+[Unit]
+Description=gocryptfs Mount Unit
+# Requires=local-fs.target
+# After=local-fs.target
+
+[Service]
+Type=forking
+ExecStart={{ gocryptfs_bin_dir }}/gocryptfs -acl -allow_other -extpass="/home/{{ gocryptfs_user }}/bin/gocryptfs-extpass.sh" "/home/{{ gocryptfs_user }}/volumes/encrypted" "/home/{{ gocryptfs_user }}/volumes/decrypted"
+# Restart=no
+# RestartSec=5
+
+[Install]
+# https://superuser.com/questions/1025091/start-a-systemd-user-service-at-boot
+# WantedBy=multi-user.target
+WantedBy=default.target

@@ -1,0 +1,6 @@
+---
+# defaults file for thtong.gocryptfs
+gocryptfs_action: install # uninstall or install
+gocryptfs_version: latest
+gocryptfs_user: "{{ app_user }}" ## defaults to ssh user of target host
+gocryptfs_bin_dir: /usr/local/bin

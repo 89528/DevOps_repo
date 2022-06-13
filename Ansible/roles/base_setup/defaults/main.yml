@@ -1,0 +1,14 @@
+---
+
+user_directories:
+  app: "/home/{{ app_user }}"
+  root: /root
+
+service_aliases:
+  clickhouse: "{{ container_service_prefix }}-clickhouse"
+  gocryptfs: 'gocryptfs'
+  mariadb: "{{ container_service_prefix }}-mariadb"
+  mongodb: "{{ container_service_prefix }}-mongodb"
+  pod: "{{ pod_service_prefix }}-globalpod"
+  postgres: "{{ container_service_prefix }}-postgres"
+  redis: "{{ container_service_prefix }}-redis"

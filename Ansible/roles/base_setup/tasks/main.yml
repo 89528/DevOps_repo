@@ -1,0 +1,58 @@
+---
+- name: Install base tools
+  become: true
+  apt:
+    name:
+      - acl
+      - aptitude
+      - bat
+      - bmon
+      - btop
+      - byobu
+      - colordiff
+      - ctop
+      - curl
+      - duf
+      - exa
+      - fail2ban
+      - fd-find
+      - git
+      - gnupg
+      - htop
+      - iproute2
+      - jq
+      - lbzip2
+      - ldnsutils
+      - links
+      - links2
+      - lynx
+      - mailutils
+      - most
+      - mtr
+      - ncdu
+      - net-tools
+      - ntp
+      - p7zip-full
+      - plocate
+      - ripgrep
+      - screen
+      - silversearcher-ag
+      - smartmontools
+      - systemd-container
+      - tig
+      - tmux
+      - tree
+      - unace
+      - unattended-upgrades
+      - unp
+      - unrar
+      - unzip
+      - vim-nox
+      - wget
+      - zsh
+    update_cache: true
+    cache_valid_time: 86400 # in seconds = 1 day
+  no_log: true
+
+- include_tasks:
+    file: 'users.yml'

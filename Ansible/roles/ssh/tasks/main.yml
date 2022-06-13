@@ -1,0 +1,99 @@
+---
+
+- name: Install SSH and tools (Ubuntu)
+  become: true
+  apt:
+    name:
+      - openssh-server
+      - fail2ban
+      - libpam-google-authenticator
+    update_cache: yes
+  when:
+    - ansible_facts['distribution'] == 'Ubuntu'
+  no_log: true
+
+- name: Disable root login
+  become: true
+  replace:
+    path: /etc/ssh/sshd_config
+    regexp: '^PermitRootLogin yes$'
+    replace: 'PermitRootLogin no'
+  notify: Restart SSH
+
+- name: Create fail2ban jail configuration directory
+  become: true
+  file:
+    path: /etc/fail2ban/jail.d
+    state: directory
+    mode: '0755'
+
+- name: Create fail2ban override directory
+  become: true
+  file:
+    path: /etc/systemd/fail2ban.service.d
+    state: directory
+    mode: '0755'
+
+- name: Restrict fail2ban permissions
+  become: true
+  copy:
+    dest: /etc/systemd/fail2ban.service.d/override.conf
+    content: |
+      [Service]
+      PrivateDevices=yes
+      PrivateTmp=yes
+      ProtectHome=read-only
+      ProtectSystem=strict
+      NoNewPrivileges=yes
+      ReadWritePaths=-/var/run/fail2ban
+      ReadWritePaths=-/var/lib/fail2ban
+      ReadWritePaths=-/var/log/fail2ban
+      ReadWritePaths=-/var/spool/postfix/maildrop
+      CapabilityBoundingSet=CAP_AUDIT_READ CAP_DAC_READ_SEARCH CAP_NET_ADMIN CAP_NET_RAW
+    force: true
+
+- name: Set fail2ban log location
+  become: true
+  copy:
+    dest: /etc/fail2ban/fail2ban.d/log.conf
+    content: |
+      [Definition]
+      logtarget = /var/log/fail2ban/fail2ban.log
+
+- name: Create SSHD jail
+  become: true
+  copy:
+    dest: /etc/fail2ban/jail.d/sshd.conf
+    content: |
+      [sshd]
+      enabled = true
+  notify: Restart Fail2ban
+
+- name: Set 5 second login delay after failed login attempts
+  replace:
+    path: '/etc/pam.d/login'
+    regexp: "^auth       optional   pam_faildelay.so  delay=3000000"
+    replace: 'auth       optional   pam_faildelay.so  delay=5000000'
+
+- name: Enable Google Authenticator PAM module
+  become: true
+  lineinfile:
+    path: /etc/pam.d/sshd
+    line: auth required pam_google_authenticator.so
+  notify: Restart SSH
+
+- name: Disable password authentication in SSH
+  become: true
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '(# *)?PasswordAuthentication .+'
+    line: 'PasswordAuthentication no'
+  notify: Restart SSH
+
+- name: Enable pubkey authentication in SSH
+  become: true
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: 'PubkeyAuthentication .+'
+    line: 'PubkeyAuthentication yes'
+  notify: Restart SSH

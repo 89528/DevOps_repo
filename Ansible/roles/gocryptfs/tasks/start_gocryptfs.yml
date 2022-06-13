@@ -1,0 +1,46 @@
+---
+
+- name: Start GoCryptFs block
+  block:
+    - name: Find uid of user
+      command: "id -u {{ gocryptfs_user }}"
+      register: gocryptfs_user_id
+      check_mode: no # Run even in check mode, otherwise the playbook fails with --check.
+      changed_when: false
+      no_log: true
+
+    - name: "Determine XDG_RUNTIME_DIR"
+      set_fact:
+        xdg_runtime_dir: "/run/user/{{ gocryptfs_user_id.stdout }}"
+      changed_when: false
+
+    - name: 'Check if gocryptfs.service.service exists'
+      stat:
+        path: "{{ service_dir }}/gocryptfs.service"
+      register: service_file
+      no_log: true
+
+    - name: set GOCRYPTFS_PASSWORD environment variable
+      shell: |
+        GOCRYPTFS_PASSWORD="{{ gocryptfs_password }}" systemctl import-environment GOCRYPTFS_PASSWORD --user
+      args:
+        executable: /bin/bash
+      environment:
+        XDG_RUNTIME_DIR: "{{ xdg_runtime_dir }}"
+      no_log: true
+      become_user: "{{ gocryptfs_user }}"
+
+    # https://stackoverflow.com/questions/59860849/is-there-a-way-to-reliably-check-that-systemd-supports-user
+    # https://github.com/ansible/ansible/issues/13895
+    - name: Start GoCryptFs service
+      command: systemctl restart gocryptfs.service --user
+      # systemd:
+      #   name: gocryptfs.service
+      #   state: restarted
+      #   # daemon_reload: true
+      #   enabled: true
+      #   scope: user
+      become_user: "{{ gocryptfs_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "{{ xdg_runtime_dir }}"
+      when: (service_file.stat.isreg is defined) and (service_file.stat.isreg)

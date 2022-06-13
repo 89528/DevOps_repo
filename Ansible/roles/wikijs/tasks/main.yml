@@ -1,0 +1,68 @@
+---
+- name: Get GoCryptFs Status
+  ansible.builtin.systemd:
+    name: 'gocryptfs'
+    scope: user
+  register: gocryptfs_status
+  become_user: "{{ app_user }}"
+  when: (app_volumes) and (gocryptfs_status.status.SubState == 'running')
+  no_log: true
+
+- name: "Create a {{ app_name }} container with systemd service file"
+  containers.podman.podman_container:
+          #expose: 9091
+    generate_systemd:
+      path: "{{ service_dir }}"
+      restart_policy: always
+      container_prefix: "{{ container_service_prefix }}"
+    image: "{{ app_image }}"
+    memory: "{{ app_memory | default(memory_limit) }}"
+    name: "{{ app_name }}"
+    requires:
+         - postgres
+    # hostname: "{{ app_name }}"
+    state: started
+    ports:
+       - '{{ app_port }}:3000'
+    timezone: "{{ timezone }}"
+    requires: 
+      - postgres
+    env:
+      DB_TYPE: "postgres"
+      DB_HOST: "{{ lookup('dig', ansible_host) }}"
+      DB_PORT: "5432"
+      DB_NAME: "wiki"
+      DB_PASS: "{{postgres_admin_password}}"
+      DB_USER: "{{postgres_admin_user}}"
+      telemetry: false
+    pod: "{{ default_pod_name }}"
+    # dns: "{{ app_dns | default(adblock_home_dns) }}"
+  become_user: "{{ app_user }}"
+  when: gocryptfs_status.status.SubState == 'running'
+
+- name: "Create {{ app_name }} volume dependency to gocryptfs"
+  ini_file:
+    dest: "{{ service_dir }}/{{ container_service_prefix }}-{{ app_name }}.service"
+    owner: "{{ app_user }}"
+    group: "{{ app_user }}"
+    mode: 0644
+    section: Unit
+    option: BindsTo
+    value: gocryptfs.service
+  become_user: "{{ app_user }}"
+  when: (app_volumes) and (gocryptfs_status.status.SubState == 'running')
+
+- name: 'Check if {{ container_service_prefix }}-{{ app_name }}.service exists'
+  stat:
+    path: "{{ service_dir }}/{{ container_service_prefix }}-{{ app_name }}.service"
+  register: service_file
+
+- name: "Start {{ app_name }} container"
+  ansible.builtin.systemd:
+    name: "{{ container_service_prefix }}-{{ app_name }}.service"
+    scope: user
+    state: started
+    daemon_reload: yes
+  become_user: "{{ app_user }}"
+  when: (service_file.stat.isreg is defined) and (service_file.stat.isreg)
+
