@@ -1,0 +1,20 @@
+[all:children]
+master
+slave
+sentinel
+[master]
+13.126.249.53 ansible_ssh_user=ubuntu ansible_ssh_port=22
+13.233.95.70 ansible_ssh_user=ubuntu ansible_ssh_port=22
+52.66.204.73 ansible_ssh_user=ubuntu ansible_ssh_port=22
+[slave]
+15.207.86.102 ansible_ssh_user=ubuntu  ansible_ssh_port=22
+13.233.142.90 ansible_ssh_user=ubuntu  ansible_ssh_port=22
+3.110.220.124 ansible_ssh_user=ubuntu  ansible_ssh_port=22
+[sentinel]
+13.126.249.53 ansible_ssh_user=ubuntu ansible_ssh_port=22
+13.233.95.70 ansible_ssh_user=ubuntu ansible_ssh_port=22
+15.207.86.102 ansible_ssh_user=ubuntu  ansible_ssh_port=22
+13.233.142.90 ansible_ssh_user=ubuntu  ansible_ssh_port=22
+[all:vars]
+ver=6.2.6
+logfile=/data/logs/redis

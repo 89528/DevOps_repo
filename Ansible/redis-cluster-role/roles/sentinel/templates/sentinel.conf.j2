@@ -1,0 +1,11 @@
+daemonize yes
+port 26379
+bind 0.0.0.0
+supervised systemd
+pidfile "/run/redis/redis-sentinel.pid"
+logfile "/var/log/redis/sentinel.log"
+sentinel monitor mymaster 13.233.246.236 6379 2
+sentinel auth-pass mymaster redis@789
+sentinel down-after-milliseconds mymaster 5000
+sentinel failover-timeout mymaster 60000
+sentinel parallel-syncs mymaster 1

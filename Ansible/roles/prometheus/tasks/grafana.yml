@@ -1,0 +1,14 @@
+---
+- name: Install grafana
+  containers.podman.podman_container:
+      name: grafana
+      image: grafana/grafana
+      detach: yes
+      ports:
+         - "3001:3000"
+      generate_systemd:
+         path: /etc/systemd/system/
+         restart_policy: always
+         time: 120
+         names: true
+         container_prefix: grafana

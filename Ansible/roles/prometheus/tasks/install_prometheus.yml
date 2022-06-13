@@ -1,0 +1,25 @@
+---
+- name: Create prometheus directory
+  file:
+    path: /etc/prometheus/
+    state: directory
+    #owner: "{{prometheus_user}}"
+- name: copy prometheus.yml to prometheus
+  template:
+     src: prometheus.j2
+     dest: /etc/prometheus/prometheus.yml
+- name: Install prometheus
+  containers.podman.podman_container:
+          name: prometheus
+          image: prom/prometheus
+          detach: yes
+          ports:
+             - "9090:9090"
+          volume:
+             - "/etc/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml"
+          generate_systemd:
+            path: /etc/systemd/system/
+            restart_policy: always
+            time: 120
+            names: true
+            container_prefix: prometheus

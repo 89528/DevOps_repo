@@ -1,0 +1,5 @@
+- name: copy redis.conf.j2
+  become: true
+  template: 'src=redis.conf.j2 dest=/etc/redis/redis.conf'
+  notify:
+     - Restart Redis

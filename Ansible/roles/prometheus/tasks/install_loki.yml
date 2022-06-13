@@ -1,0 +1,24 @@
+---
+- name: Create prometheus directory
+  file:
+    path: /etc/loki/
+    state: directory
+- name: copy loki.yml to loki
+  template:
+    src: loki.j2
+    dest: /etc/loki/local-config.yml
+- name: Install loki
+  containers.podman.podman_container:
+        name: loki
+        image: grafana/loki:2.4.1
+        detach: yes
+        ports:
+          - "3100:3000"
+        volumes:
+           - /etc/loki/:/etc/loki/local-config.yml
+        generate_systemd:
+           path: /etc/systemd/system/
+           restart_policy: always
+           time: 120
+           names: true
+           container_prefix: loki

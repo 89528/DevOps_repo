@@ -1,0 +1,7 @@
+---
+- name: setup monitoring
+  include_tasks: "{{ item }}"
+  loop:
+    - install_prometheus.yml
+    - install_loki.yml
+    - grafana.yml 

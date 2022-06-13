@@ -1,0 +1,29 @@
+- hosts: master,slave
+  remote_user: root
+  gather_facts: True
+  roles:
+    - common
+- hosts: master
+  remote_user: root
+  gather_facts: True
+  roles:
+    - master
+  vars:
+    file: redis.log
+    dir: /data/redis
+- hosts: slave
+  remote_user: root
+  gather_facts: True
+  roles:
+    - slave
+  vars:
+    file: redis.log
+    dir: /data/redis
+- hosts: sentinel
+  remote_user: root
+  gather_facts: True
+  roles:
+    - sentinel
+  vars:
+    file: sentinel.log
+    dir: /data/sentinel

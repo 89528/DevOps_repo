@@ -1,0 +1,11 @@
+- name: copy sentinel.conf.j2
+  become: yes
+  template: 'src=sentinel.conf.j2 dest=/etc/redis/sentinel.conf'
+- name: change sentinel permission
+  become: true
+  command: 'chown redis:redis /etc/redis/sentinel.conf'
+- name: copy sentinel service
+  become: true
+  template: 'src=redis-sentinel.service.j2 dest=/etc/systemd/system/redis.service'
+  notify:
+     - start redis-sentinel
